@@ -623,11 +623,30 @@ class SwipeManager {
         throw new Error(`Unhandled case: ${eventCheck}`);
       }
 
+      const configAnimate = Config.current().getAnimate();
+      const view = PageObjectManager.haAppLayoutView.getDomNode();
+      if (view == null) {
+        Logger.loge(LOG_TAG, "view is null when attempting to change tab.");
+      }
+      else if (configAnimate == "swipe") {
+        const haAppLayoutDomNode = PageObjectManager.haAppLayout.getDomNode();
+        if (haAppLayoutDomNode != null) {
+          haAppLayoutDomNode.style.overflow = "hidden";
+        }
+        let dist = Math.min(Math.abs(this.#xDiff), 250);
+        let offset = (dist - (dist * dist)/500)/2;
+        
+        view.style.transform = `translate(${offset * Math.sign(-this.#xDiff)}px, 0)`;
+
+      }
+
       if (Math.abs(this.#xDiff) > Math.abs(this.#yDiff) && Config.current().getPreventDefault()) event.preventDefault();
     }
   }
 
   static #handlePointerEnd() {
+
+    let resetSwipe = true;
     if (this.#xDiff != null && this.#yDiff != null) {
       if (Math.abs(this.#xDiff) < Math.abs(this.#yDiff)) {
         Logger.logd(LOG_TAG, "Swipe ignored, vertical movement.");
@@ -635,7 +654,7 @@ class SwipeManager {
       } else {  // Horizontal movement
         if (Math.abs(this.#xDiff) < Math.abs(screen.width * Config.current().getSwipeAmount())) {
           Logger.logd(LOG_TAG, "Swipe ignored, too short.");
-
+    
         } else {
           const directionLeft = this.#xDiff < 0;
 
@@ -644,11 +663,28 @@ class SwipeManager {
           const rtl = PageObjectManager.ha.getDomNode()?.style.direction == "rtl";
           const nextTabIndex = this.#getNextTabIndex(rtl ? !directionLeft : directionLeft);
           if (nextTabIndex >= 0) {
+            resetSwipe = false; // Animate swipe from current offset
             this.#click(nextTabIndex, directionLeft);
           }
         }
       }
     }
+
+    if(resetSwipe)
+    {
+      const configAnimate = Config.current().getAnimate();
+      const view = PageObjectManager.haAppLayoutView.getDomNode();
+      if (view != null && configAnimate == "swipe") {
+        view.style.transition = `transform 200ms ease-out`;
+        const haAppLayoutDomNode = PageObjectManager.haAppLayout.getDomNode();
+        if (haAppLayoutDomNode != null) {
+          haAppLayoutDomNode.style.overflow = "hidden";
+        }
+        view.style.transform = `translate(0, 0)`;
+
+      }
+    }
+
     this.#xDown = this.#yDown = this.#xDiff = this.#yDiff = null;
   }
 
